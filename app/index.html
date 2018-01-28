@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<style>
+  body {
+    margin: 0px;
+    overflow: hidden;
+  }
+  #controles {
+    background-color: rgba(255, 255, 255, 0.8);
+    width: 100%;
+    position: absolute;
+  }
+  input[type="text"] {
+    width: 50px;
+  }
+</style>
+<body>
+<div id="controles">
+  <button id="start"></button>
+  <button id="step">step</button>
+  interval:<input id="interval" type="number" max="1000" min="50" step="50"></input>
+  size:<input id="size" type="number" max="50" min="2"></input>
+  shape:<select id="shape">
+    <option value="rect">rect</option>
+    <option value="hex">hex</option>
+    <option value="tri">tri</option>
+  </select>
+  survive:<input id="survive" type="text"></input>
+  spawn:<input id="spawn" type="text"></input>
+  <button id="clear">clear</button>
+</div>
+<div id="field"></div>
+<script src="main.js"></script>
+</body>
+</html>
