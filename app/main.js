@@ -97,19 +97,29 @@ class ConwayGameOfLife {
   constructor(ctx, cellsize, color, oldPoints) {
     this.ctx = ctx
     this.cellsize = cellsize
-    this.width = Math.floor(ctx.canvas.width / this.cellsize)
-    this.height = Math.floor(ctx.canvas.height / this.cellsize)
+    const size = this.getSize()
+    this.width = size.width
+    this.height = size.height
     this.color = color
     this.points = []
+    this.paths = []
     for (let i = 0; i < this.width; i++) {
       this.points[i] = []
+      this.paths[i] = []
       for (let j = 0; j < this.height; j++) {
+        this.paths[i][j] = this.getCellPath(i, j)
         if (oldPoints && oldPoints[i] && oldPoints[i][j]) {
           this.fillPoint(i, j)
         } else {
           this.points[i][j] = 0
         }
       }
+    }
+  }
+  getSize() {
+    return {
+      width: Math.floor(this.ctx.canvas.width / this.cellsize),
+      height: Math.floor(this.ctx.canvas.height / this.cellsize)
     }
   }
   clear() {
@@ -131,12 +141,12 @@ class ConwayGameOfLife {
   blankPoint(i, j) {
     this.points[i][j] = 0
     this.ctx.fillStyle = '#ffffff'
-    this.ctx.fill(this.getCellPath(i, j))
+    this.ctx.fill(this.paths[i][j])
   }
   fillPoint(i, j) {
     this.points[i][j] = 1
     this.ctx.fillStyle = `hsl(${this.color}, 100%, 50%)`
-    this.ctx.fill(this.getCellPath(i, j))
+    this.ctx.fill(this.paths[i][j])
   }
   getCellPath(i, j) {
     const path = new Path2D()
@@ -188,28 +198,20 @@ ConwayGameOfLife.prototype.spawn = [3]
 class HexGameOfLife extends ConwayGameOfLife{
   constructor(ctx, cellsize, color, oldPoints) {
     super(ctx, cellsize, color, oldPoints)
-    this.width = Math.round(ctx.canvas.width / this.cellsize)
-    this.height = Math.round(ctx.canvas.height * 2 * ROOT1_3 / this.cellsize)
-    this.points = []
-    for (let i = 0; i < this.width; i++) {
-      this.points[i] = []
-      for (let j = 0; j < this.height; j++) {
-        if (oldPoints && oldPoints[i] && oldPoints[i][j]) {
-          this.fillPoint(i, j)
-        } else {
-          this.points[i][j] = 0
-        }
-      }
+  }
+  getSize() {
+    return {
+      width: Math.round(this.ctx.canvas.width / this.cellsize),
+      height: Math.round(this.ctx.canvas.height * 2 * ROOT1_3 / this.cellsize)
     }
   }
   blankPoint(i, j) {
     this.points[i][j] = 0
-    const path = this.getCellPath(i, j)
     this.ctx.fillStyle = '#ffffff'
-    this.ctx.fill(path)
+    this.ctx.fill(this.paths[i][j])
     this.ctx.lineWidth = 1;
     this.ctx.strokeStyle = '#ffffff'
-    this.ctx.stroke(path)
+    this.ctx.stroke(this.paths[i][j])
   }
   clicked(x, y) {
     const i = mod(Math.floor((x - ROOT1_3 * y) / this.cellsize + 0.75), this.width)
@@ -241,28 +243,20 @@ HexGameOfLife.prototype.spawn = [2]
 class TriangleGameOfLife extends ConwayGameOfLife{
   constructor(ctx, cellsize, color, oldPoints) {
     super(ctx, cellsize, color, oldPoints)
-    this.width = Math.round(ctx.canvas.width * ROOT3 / 2 / this.cellsize)
-    this.height = Math.round(ctx.canvas.height * 2 / this.cellsize)
-    this.points = []
-    for (let i = 0; i < this.width; i++) {
-      this.points[i] = []
-      for (let j = 0; j < this.height; j++) {
-        if (oldPoints && oldPoints[i] && oldPoints[i][j]) {
-          this.fillPoint(i, j)
-        } else {
-          this.points[i][j] = 0
-        }
-      }
+  }
+  getSize() {
+    return {
+      width: Math.round(this.ctx.canvas.width * ROOT3 / 2 / this.cellsize),
+      height: Math.round(this.ctx.canvas.height * 2 / this.cellsize)
     }
   }
   blankPoint(i, j) {
     this.points[i][j] = 0
-    const path = this.getCellPath(i, j)
     this.ctx.fillStyle = '#ffffff'
-    this.ctx.fill(path)
+    this.ctx.fill(this.paths[i][j])
     this.ctx.lineWidth = 1;
     this.ctx.strokeStyle = '#ffffff'
-    this.ctx.stroke(path)
+    this.ctx.stroke(this.paths[i][j])
   }
   clicked(x, y) {
     const i = mod(Math.floor((x * ROOT3 - y) / 2 / this.cellsize), this.width)
