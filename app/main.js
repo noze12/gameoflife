@@ -3,6 +3,8 @@ const DEFALUT_CELLSIZE = 15
 const DEFAULT_INTERVAL = 100
 const DEFAULT_SHAPE = 'rect'
 const DEFAULT_COLOR = 240
+const DEFAULT_SURVIVE = "23"
+const DEFAULT_SPAWN = "3"
 const ROOT3 = Math.pow(3, 0.5)
 const ROOT1_3 = Math.pow(3, -0.5)
 
@@ -24,10 +26,12 @@ document.addEventListener('DOMContentLoaded', () => {
   fieldElement.appendChild(canvas)
   const ctx = canvas.getContext('2d');
   let logic = new (logicClass[DEFAULT_SHAPE])(ctx, DEFALUT_CELLSIZE, DEFAULT_COLOR)
+  logic.survive = DEFAULT_SURVIVE.split('').map(v => Number(v))
+  logic.spawn = DEFAULT_SPAWN.split('').map(v => Number(v))
   const surviveInput = document.getElementById('survive')
-  surviveInput.value = logic.survive.join('')
+  surviveInput.value = DEFAULT_SURVIVE
   const spawnInput = document.getElementById('spawn')
-  spawnInput.value = logic.spawn.join('')
+  spawnInput.value = DEFAULT_SPAWN
 
   let isMousedonw = false
   canvas.addEventListener('mousedown', e => {
@@ -66,16 +70,16 @@ document.addEventListener('DOMContentLoaded', () => {
     logic = new (logicClass[shapeSelect.value])(
       ctx, Number(sizeInput.value), logic.color, logic.points
     )
-    surviveInput.value = logic.survive.join('')
-    spawnInput.value = logic.spawn.join('')
+    logic.survive = surviveInput.value.split('').map(v => Number(v))
+    logic.spawn = spawnInput.value.split('').map(v => Number(v))
   })
   shapeSelect.addEventListener('change', () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     logic = new (logicClass[shapeSelect.value])(
       ctx, Number(sizeInput.value), logic.color, logic.points
     )
-    surviveInput.value = logic.survive.join('')
-    spawnInput.value = logic.spawn.join('')
+    logic.survive = surviveInput.value.split('').map(v => Number(v))
+    logic.spawn = spawnInput.value.split('').map(v => Number(v))
   })
   surviveInput.addEventListener('change', () => {
     logic.survive = surviveInput.value.split('').map(v => Number(v))
@@ -127,14 +131,14 @@ class ConwayGameOfLife {
   blankPoint(i, j) {
     this.points[i][j] = 0
     this.ctx.fillStyle = '#ffffff'
-    this.ctx.fill(this.getFillPath(i, j))
+    this.ctx.fill(this.getCellPath(i, j))
   }
   fillPoint(i, j) {
     this.points[i][j] = 1
     this.ctx.fillStyle = `hsl(${this.color}, 100%, 50%)`
-    this.ctx.fill(this.getFillPath(i, j))
+    this.ctx.fill(this.getCellPath(i, j))
   }
-  getFillPath(i, j) {
+  getCellPath(i, j) {
     const path = new Path2D()
     path.moveTo(i * this.cellsize, j * this.cellsize)
     path.lineTo((i + 1) * this.cellsize, j * this.cellsize)
@@ -200,7 +204,7 @@ class HexGameOfLife extends ConwayGameOfLife{
   }
   blankPoint(i, j) {
     this.points[i][j] = 0
-    const path = this.getFillPath(i, j)
+    const path = this.getCellPath(i, j)
     this.ctx.fillStyle = '#ffffff'
     this.ctx.fill(path)
     this.ctx.lineWidth = 1;
@@ -212,7 +216,7 @@ class HexGameOfLife extends ConwayGameOfLife{
     const j = mod(Math.floor((2 * ROOT1_3 * y) / this.cellsize + 0.75 * ROOT1_3), this.height)
     this.fillPoint(i, j)
   }
-  getFillPath(i, j) {
+  getCellPath(i, j) {
     const centerX = mod(i + j / 2, this.width) * this.cellsize
     const centerY = mod(ROOT3 / 2 * j, this.height) * this.cellsize
     const path = new Path2D()
@@ -253,7 +257,7 @@ class TriangleGameOfLife extends ConwayGameOfLife{
   }
   blankPoint(i, j) {
     this.points[i][j] = 0
-    const path = this.getFillPath(i, j)
+    const path = this.getCellPath(i, j)
     this.ctx.fillStyle = '#ffffff'
     this.ctx.fill(path)
     this.ctx.lineWidth = 1;
@@ -265,7 +269,7 @@ class TriangleGameOfLife extends ConwayGameOfLife{
     const j = mod(Math.floor((2 * y) / this.cellsize), this.height)
     this.fillPoint(i, j)
   }
-  getFillPath(i, j) {
+  getCellPath(i, j) {
     const path = new Path2D()
     if (j % 2 === 0) {
       const leftTopX = mod(i * 2 + j / 2, this.width * 2)  * ROOT1_3 * this.cellsize
