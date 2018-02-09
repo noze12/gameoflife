@@ -2,7 +2,8 @@
 const DEFALUT_CELLSIZE = 15
 const DEFAULT_INTERVAL = 100
 const DEFAULT_SHAPE = 'rect'
-const DEFAULT_COLOR = 240
+const DEFAULT_COLOR = 'generation'
+const DEFAULT_GEN_COLOR = 240
 const DEFAULT_SURVIVE = "23"
 const DEFAULT_SPAWN = "3"
 const ROOT3 = Math.pow(3, 0.5)
@@ -19,13 +20,15 @@ document.addEventListener('DOMContentLoaded', () => {
   sizeInput.setAttribute('value', DEFALUT_CELLSIZE)
   const shapeSelect = document.getElementById('shape')
   shapeSelect.setAttribute('value', DEFAULT_SHAPE)
+  const colorSelect = document.getElementById('color')
+  colorSelect.setAttribute('value', DEFAULT_COLOR)
   const fieldElement = document.getElementById('field')
   const canvas = document.createElement('canvas')
   canvas.setAttribute('width', window.innerWidth)
   canvas.setAttribute('height', window.innerHeight)
   fieldElement.appendChild(canvas)
   const ctx = canvas.getContext('2d');
-  let logic = new (logicClass[DEFAULT_SHAPE])(ctx, DEFALUT_CELLSIZE, DEFAULT_COLOR)
+  let logic = new (logicClass[DEFAULT_SHAPE])(ctx, DEFALUT_CELLSIZE, DEFAULT_GEN_COLOR)
   logic.survive = DEFAULT_SURVIVE.split('').map(v => Number(v))
   logic.spawn = DEFAULT_SPAWN.split('').map(v => Number(v))
   const surviveInput = document.getElementById('survive')
@@ -35,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let isMousedonw = false
   canvas.addEventListener('mousedown', e => {
-    logic.clicked(e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop)
+    logic.clicked(e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop, 1)
     isMousedonw = true
   })
   canvas.addEventListener('mouseup', () => isMousedonw = false)
@@ -68,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
   sizeInput.addEventListener('change', () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     logic = new (logicClass[shapeSelect.value])(
-      ctx, Number(sizeInput.value), logic.color, logic.points
+      ctx, Number(sizeInput.value), logic.color, logic.cells
     )
     logic.survive = surviveInput.value.split('').map(v => Number(v))
     logic.spawn = spawnInput.value.split('').map(v => Number(v))
@@ -76,7 +79,24 @@ document.addEventListener('DOMContentLoaded', () => {
   shapeSelect.addEventListener('change', () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     logic = new (logicClass[shapeSelect.value])(
-      ctx, Number(sizeInput.value), logic.color, logic.points
+      ctx, Number(sizeInput.value), logic.color, logic.cells
+    )
+    logic.survive = surviveInput.value.split('').map(v => Number(v))
+    logic.spawn = spawnInput.value.split('').map(v => Number(v))
+  })
+  shapeSelect.addEventListener('change', () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    logic = new (logicClass[shapeSelect.value])(
+      ctx, Number(sizeInput.value), logic.color, logic.cells
+    )
+    logic.survive = surviveInput.value.split('').map(v => Number(v))
+    logic.spawn = spawnInput.value.split('').map(v => Number(v))
+  })
+  colorSelect.addEventListener('change', () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const color = colorSelect.value === 'generation' ? DEFAULT_GEN_COLOR : null
+    logic = new (logicClass[shapeSelect.value])(
+      ctx, Number(sizeInput.value), color, logic.cells
     )
     logic.survive = surviveInput.value.split('').map(v => Number(v))
     logic.spawn = spawnInput.value.split('').map(v => Number(v))
@@ -94,28 +114,39 @@ function mod(n, m) {
   return n
 }
 class ConwayGameOfLife {
-  constructor(ctx, cellsize, color, oldPoints) {
+  constructor(ctx, cellsize, color, oldCells) {
     this.ctx = ctx
     this.cellsize = cellsize
     const size = this.getSize()
     this.width = size.width
     this.height = size.height
     this.color = color
-    this.points = []
-    this.paths = []
+    const cells = []
     for (let i = 0; i < this.width; i++) {
-      this.points[i] = []
-      this.paths[i] = []
+      cells[i] = []
       for (let j = 0; j < this.height; j++) {
-        this.paths[i][j] = this.getCellPath(i, j)
-        if (oldPoints && oldPoints[i] && oldPoints[i][j]) {
-          this.fillPoint(i, j)
+        cells[i][j] = {
+          path: this.getCellPath(i, j)
+        }
+        if (oldCells && oldCells[i] && oldCells[i][j]) {
+          cells[i][j].state = oldCells[i][j].state
         } else {
-          this.points[i][j] = 0
+          cells[i][j].state = 0
         }
       }
     }
+    cells.forEach((cs, i) => cs.forEach((cell, j) => {
+      cell.neighbors = this.getNeighbors(i, j).map(([dx, dy]) => {
+        const x = mod(i + dx, this.width)
+        const y = mod(j + dy, this.height)
+        return cells[x][y]
+      })
+      cell.score = cell.neighbors.reduce((m, nei) => m + nei.state, 0)
+      this.drawCell(cell)
+    }))
+    this.cells = cells
   }
+
   getSize() {
     return {
       width: Math.floor(this.ctx.canvas.width / this.cellsize),
@@ -124,29 +155,50 @@ class ConwayGameOfLife {
   }
   clear() {
     this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
-    this.points = []
     for (let i = 0; i < this.width; i++) {
-      this.points[i] = []
       for (let j = 0; j < this.height; j++) {
-        this.points[i][j] = 0
+        this.cells[i][j].state = 0
+        this.cells[i][j].score = 0
       }
     }
   }
-  clicked(x, y) {
-    this.fillPoint(
-      mod(Math.floor(x / this.cellsize), this.width),
-      mod(Math.floor(y / this.cellsize), this.height)
-    )
+  clicked(x, y, toggle) {
+    const i = mod(Math.floor(x / this.cellsize), this.width)
+    const j = mod(Math.floor(y / this.cellsize), this.height)
+    if (toggle && this.cells[i][j].state) {
+      this.blankPoint(i, j)
+    } else {
+      this.fillPoint(i, j)
+    }
   }
   blankPoint(i, j) {
-    this.points[i][j] = 0
-    this.ctx.fillStyle = '#ffffff'
-    this.ctx.fill(this.paths[i][j])
+    if (this.cells[i][j].state) {
+      this.cells[i][j].neighbors.forEach(nei => {
+        nei.score --
+        this.drawCell(nei)
+      })
+    }
+    this.cells[i][j].state = 0
+    this.drawCell(this.cells[i][j])
   }
   fillPoint(i, j) {
-    this.points[i][j] = 1
-    this.ctx.fillStyle = `hsl(${this.color}, 100%, 50%)`
-    this.ctx.fill(this.paths[i][j])
+    if (!this.cells[i][j].state) {
+      this.cells[i][j].neighbors.forEach(nei => {
+        nei.score ++
+        this.drawCell(nei)
+      })
+    }
+    this.cells[i][j].state = 1
+    this.drawCell(this.cells[i][j])
+  }
+  drawCell(cell) {
+    if (cell.state) {
+      const color = this.color !== null ? this.color : 240 - cell.score * 30
+      this.ctx.fillStyle = `hsl(${color}, 100%, 50%)`
+    } else {
+      this.ctx.fillStyle = '#ffffff'
+    }
+    this.ctx.fill(cell.path)
   }
   getCellPath(i, j) {
     const path = new Path2D()
@@ -157,31 +209,33 @@ class ConwayGameOfLife {
     path.closePath()
     return path
   }
-  togglePoint(i, j) {
-    if (this.points[i][j]) {
-      this.blankPoint(i, j)
-    } else {
-      this.fillPoint(i, j)
-    }
-  }
   step() {
     const changes = []
     for (let i = 0; i < this.width; i++) {
       for (let j = 0; j < this.height; j++) {
-        const sum = this.getNeighbors(i, j).reduce((m, [dx, dy]) => {
-          const x = mod(i + dx, this.width)
-          const y = mod(j + dy, this.height)
-          return this.points[x][y] + m
-        }, 0)
-        if (this.points[i][j] && !this.survive.includes(sum)) {
-          changes.push([i, j])
-        } else if (!this.points[i][j] && this.spawn.includes(sum)) {
-          changes.push([i, j])
+        if (this.cells[i][j].state && !this.survive.includes(this.cells[i][j].score)) {
+          changes.push(this.cells[i][j])
+          this.cells[i][j].state = 0
+        } else if (!this.cells[i][j].state && this.spawn.includes(this.cells[i][j].score)) {
+          changes.push(this.cells[i][j])
+          this.cells[i][j].state = 1
         }
       }
     }
-    changes.forEach(([i, j]) => this.togglePoint(i, j))
-    this.color = mod(this.color + 1, 360)
+    const redraw = new Set(changes)
+    changes.forEach(cell => {
+      const scoreCange = cell.state * 2 - 1
+      cell.neighbors.forEach(nei => {
+        nei.score += scoreCange
+        if (this.color === null && nei.state) {
+          redraw.add(nei)
+        }
+      })
+    })
+    redraw.forEach(cell => this.drawCell(cell))
+    if (this.color !== null) {
+      this.color = mod(this.color + 1, 360)
+    }
   }
   getNeighbors() {
     return this.neighbors
@@ -192,8 +246,6 @@ ConwayGameOfLife.prototype.neighbors = [
   [ 0, -1],          [ 0, 1],
   [ 1, -1], [ 1, 0], [ 1, 1],
 ]
-ConwayGameOfLife.prototype.survive = [2, 3]
-ConwayGameOfLife.prototype.spawn = [3]
 
 class HexGameOfLife extends ConwayGameOfLife{
   constructor(ctx, cellsize, color, oldPoints) {
@@ -205,18 +257,14 @@ class HexGameOfLife extends ConwayGameOfLife{
       height: Math.round(this.ctx.canvas.height * 2 * ROOT1_3 / this.cellsize)
     }
   }
-  blankPoint(i, j) {
-    this.points[i][j] = 0
-    this.ctx.fillStyle = '#ffffff'
-    this.ctx.fill(this.paths[i][j])
-    this.ctx.lineWidth = 1;
-    this.ctx.strokeStyle = '#ffffff'
-    this.ctx.stroke(this.paths[i][j])
-  }
-  clicked(x, y) {
+  clicked(x, y, toggle) {
     const i = mod(Math.floor((x - ROOT1_3 * y) / this.cellsize + 0.75), this.width)
     const j = mod(Math.floor((2 * ROOT1_3 * y) / this.cellsize + 0.75 * ROOT1_3), this.height)
-    this.fillPoint(i, j)
+    if (toggle && this.cells[i][j].state) {
+      this.blankPoint(i, j)
+    } else {
+      this.fillPoint(i, j)
+    }
   }
   getCellPath(i, j) {
     const centerX = mod(i + j / 2, this.width) * this.cellsize
@@ -237,8 +285,6 @@ HexGameOfLife.prototype.neighbors = [
   [ 0, -1],          [ 0, 1],
   [ 1, -1], [ 1, 0],
 ]
-HexGameOfLife.prototype.survive = [3, 4]
-HexGameOfLife.prototype.spawn = [2]
 
 class TriangleGameOfLife extends ConwayGameOfLife{
   constructor(ctx, cellsize, color, oldPoints) {
@@ -250,18 +296,14 @@ class TriangleGameOfLife extends ConwayGameOfLife{
       height: Math.round(this.ctx.canvas.height * 2 / this.cellsize)
     }
   }
-  blankPoint(i, j) {
-    this.points[i][j] = 0
-    this.ctx.fillStyle = '#ffffff'
-    this.ctx.fill(this.paths[i][j])
-    this.ctx.lineWidth = 1;
-    this.ctx.strokeStyle = '#ffffff'
-    this.ctx.stroke(this.paths[i][j])
-  }
-  clicked(x, y) {
+  clicked(x, y, toggle) {
     const i = mod(Math.floor((x * ROOT3 - y) / 2 / this.cellsize), this.width)
     const j = mod(Math.floor((2 * y) / this.cellsize), this.height)
-    this.fillPoint(i, j)
+    if (toggle && this.cells[i][j].state) {
+      this.blankPoint(i, j)
+    } else {
+      this.fillPoint(i, j)
+    }
   }
   getCellPath(i, j) {
     const path = new Path2D()
@@ -305,8 +347,6 @@ TriangleGameOfLife.prototype.neighbor_odd = [
   [-1, 1], [0,  1], [1,  1],
   [-1, 2], [0,  2]
 ]
-TriangleGameOfLife.prototype.survive = [3, 4, 5]
-TriangleGameOfLife.prototype.spawn = [4]
 const logicClass = {
   rect: ConwayGameOfLife,
   hex: HexGameOfLife,
