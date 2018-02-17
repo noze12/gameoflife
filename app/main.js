@@ -1,40 +1,87 @@
 
-const DEFALUT_CELLSIZE = 15
-const DEFAULT_INTERVAL = 100
-const DEFAULT_SHAPE = 'rect'
-const DEFAULT_COLOR = 'generation'
-const DEFAULT_GEN_COLOR = 240
-const DEFAULT_SURVIVE = "23"
-const DEFAULT_SPAWN = "3"
 const ROOT3 = Math.pow(3, 0.5)
 const ROOT1_3 = Math.pow(3, -0.5)
+const defaultState = {
+  cellsize: 15,
+  interval: 100,
+  shape: 'square',
+  color: 'generation',
+  generation: 240,
+  survive: "23".split('').map(Number),
+  spawn: "3".split('').map(Number),
+  start: false,
+  border: true,
+}
+function parseQueryString(queryString) {
+  const state = Object.assign({}, defaultState)
+  queryString.replace('?', '').split('&').forEach(param => {
+    const [key, val] = param.split('=')
+    switch (key) {
+      case 'cellsize':
+        state.cellsize = Number(val)
+        break;
+      case 'interval':
+        state.interval = Number(val)
+        break;
+      case 'shape':
+        if (val === 'square' || val === 'hexa' || val === 'tri' ) {
+          state.shape = val
+        }
+        break;
+      case 'color':
+        if (val === 'generation' || val === 'density') {
+          state.color = val
+        }
+        break;
+      case 'survive':
+        state.survive = val.split('').map(Number)
+        break;
+      case 'spawn':
+        state.spawn = val.split('').map(Number)
+        break;
+      case 'border':
+        if (val === '0' || val === '' || val === 'false' ) {
+          state.border = false
+        } else {
+          state.border = true
+        }
+        break;
+    }
+  })
+  return state
+}
 
+function mod(n, m) {
+  if (n < 0) return n + m
+  if (m <= n) return n - m
+  return n
+}
 document.addEventListener('DOMContentLoaded', () => {
+  const state = parseQueryString(location.search)
   const clearButton = document.getElementById('clear')
   const stepButton = document.getElementById('step')
   const startButton = document.getElementById('start')
-  startButton.textContent = 'start'
   const speedInput = document.getElementById('interval')
-  speedInput.setAttribute('value', DEFAULT_INTERVAL)
-  const sizeInput = document.getElementById('size')
-  sizeInput.setAttribute('value', DEFALUT_CELLSIZE)
+  const sizeInput = document.getElementById('cellsize')
   const shapeSelect = document.getElementById('shape')
-  shapeSelect.setAttribute('value', DEFAULT_SHAPE)
   const colorSelect = document.getElementById('color')
-  colorSelect.setAttribute('value', DEFAULT_COLOR)
+  const surviveInput = document.getElementById('survive')
+  const spawnInput = document.getElementById('spawn')
+  const borderInput = document.getElementById('border')
+  speedInput.value = state.interval
+  sizeInput.value = state.cellsize
+  shapeSelect.value = state.shape
+  colorSelect.value = state.color
+  surviveInput.value = state.survive.join('')
+  spawnInput.value = state.spawn.join('')
+  borderInput.checked = state.border
   const fieldElement = document.getElementById('field')
   const canvas = document.createElement('canvas')
   canvas.setAttribute('width', window.innerWidth)
   canvas.setAttribute('height', window.innerHeight)
   fieldElement.appendChild(canvas)
-  const ctx = canvas.getContext('2d');
-  let logic = new (logicClass[DEFAULT_SHAPE])(ctx, DEFALUT_CELLSIZE, DEFAULT_GEN_COLOR)
-  logic.survive = DEFAULT_SURVIVE.split('').map(v => Number(v))
-  logic.spawn = DEFAULT_SPAWN.split('').map(v => Number(v))
-  const surviveInput = document.getElementById('survive')
-  surviveInput.value = DEFAULT_SURVIVE
-  const spawnInput = document.getElementById('spawn')
-  spawnInput.value = DEFAULT_SPAWN
+  const ctx = canvas.getContext('2d')
+  let logic = new (logicClass[state.shape])(ctx, state)
 
   let isMousedonw = false
   canvas.addEventListener('mousedown', e => {
@@ -49,7 +96,6 @@ document.addEventListener('DOMContentLoaded', () => {
   })
   clearButton.addEventListener('click', () => logic.clear())
   stepButton.addEventListener('click', () => logic.step())
-  let interval = DEFAULT_INTERVAL
   let intervalId
   startButton.addEventListener('click', () => {
     if (intervalId) {
@@ -57,70 +103,48 @@ document.addEventListener('DOMContentLoaded', () => {
       intervalId = null
       startButton.textContent = 'start'
     } else {
-      intervalId = setInterval(() => logic.step(), interval)
+      intervalId = setInterval(() => logic.step(), state.interval)
       startButton.textContent = 'stop'
     }
   })
   speedInput.addEventListener('change', () => {
-    interval = speedInput.value
+    state.interval = speedInput.value
     if (intervalId) {
       clearInterval(intervalId)
-      intervalId = setInterval(() => logic.step(), interval)
+      intervalId = setInterval(() => logic.step(), state.interval)
     }
   })
   sizeInput.addEventListener('change', () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    logic = new (logicClass[shapeSelect.value])(
-      ctx, Number(sizeInput.value), logic.color, logic.cells
-    )
-    logic.survive = surviveInput.value.split('').map(v => Number(v))
-    logic.spawn = spawnInput.value.split('').map(v => Number(v))
+    state.cellsize = Number(sizeInput.value)
+    logic = new (logicClass[state.shape])(ctx, state, logic.cells)
   })
   shapeSelect.addEventListener('change', () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    logic = new (logicClass[shapeSelect.value])(
-      ctx, Number(sizeInput.value), logic.color, logic.cells
-    )
-    logic.survive = surviveInput.value.split('').map(v => Number(v))
-    logic.spawn = spawnInput.value.split('').map(v => Number(v))
-  })
-  shapeSelect.addEventListener('change', () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    logic = new (logicClass[shapeSelect.value])(
-      ctx, Number(sizeInput.value), logic.color, logic.cells
-    )
-    logic.survive = surviveInput.value.split('').map(v => Number(v))
-    logic.spawn = spawnInput.value.split('').map(v => Number(v))
+    state.shape = shapeSelect.value
+    logic = new (logicClass[state.shape])(ctx, state, logic.cells)
   })
   colorSelect.addEventListener('change', () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const color = colorSelect.value === 'generation' ? DEFAULT_GEN_COLOR : null
-    logic = new (logicClass[shapeSelect.value])(
-      ctx, Number(sizeInput.value), color, logic.cells
-    )
-    logic.survive = surviveInput.value.split('').map(v => Number(v))
-    logic.spawn = spawnInput.value.split('').map(v => Number(v))
+    state.color = colorSelect.value
+    logic.redrawAll()
   })
   surviveInput.addEventListener('change', () => {
-    logic.survive = surviveInput.value.split('').map(v => Number(v))
+    state.survive = surviveInput.value.split('').map(Number)
   })
   spawnInput.addEventListener('change', () => {
-    logic.spawn = spawnInput.value.split('').map(v => Number(v))
+    state.spawn = spawnInput.value.split('').map(Number)
+  })
+  borderInput.addEventListener('change', () => {
+    state.border = borderInput.checked
+    logic.redrawAll()
   })
 })
-function mod(n, m) {
-  if (n < 0) return n + m
-  if (m <= n) return n - m
-  return n
-}
-class ConwayGameOfLife {
-  constructor(ctx, cellsize, color, oldCells) {
+class SquareGameOfLife {
+  constructor(ctx, state, oldCells) {
     this.ctx = ctx
-    this.cellsize = cellsize
+    this.globalState = state
+    this.cellsize = state.cellsize
     const size = this.getSize()
     this.width = size.width
     this.height = size.height
-    this.color = color
     const cells = []
     for (let i = 0; i < this.width; i++) {
       cells[i] = []
@@ -130,20 +154,21 @@ class ConwayGameOfLife {
         }
         if (oldCells && oldCells[i] && oldCells[i][j]) {
           cells[i][j].state = oldCells[i][j].state
+          cells[i][j].generation = oldCells[i][j].generation
         } else {
           cells[i][j].state = 0
         }
       }
     }
-    cells.forEach((cs, i) => cs.forEach((cell, j) => {
-      cell.neighbors = this.getNeighbors(i, j).map(([dx, dy]) => {
-        const x = mod(i + dx, this.width)
-        const y = mod(j + dy, this.height)
-        return cells[x][y]
-      })
-      cell.score = cell.neighbors.reduce((m, nei) => m + nei.state, 0)
-      this.drawCell(cell)
-    }))
+    for (let i = 0; i < this.width; i++) {
+      for (let j = 0; j < this.height; j++) {
+        cells[i][j].neighbors = this.getNeighbors(i, j).map(([dx, dy]) => {
+          return cells[mod(i + dx, this.width)][mod(j + dy, this.height)]
+        })
+        cells[i][j].score = cells[i][j].neighbors.reduce((m, nei) => m + nei.state, 0)
+        this.drawCell(cells[i][j])
+      }
+    }
     this.cells = cells
   }
 
@@ -154,11 +179,21 @@ class ConwayGameOfLife {
     }
   }
   clear() {
-    this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
     for (let i = 0; i < this.width; i++) {
       for (let j = 0; j < this.height; j++) {
+        let oldState = this.cells[i][j].state
         this.cells[i][j].state = 0
         this.cells[i][j].score = 0
+        if (oldState) {
+          this.drawCell(this.cells[i][j])
+        }
+      }
+    }
+  }
+  redrawAll() {
+    for (let i = 0; i < this.width; i++) {
+      for (let j = 0; j < this.height; j++) {
+        this.drawCell(this.cells[i][j])
       }
     }
   }
@@ -175,7 +210,9 @@ class ConwayGameOfLife {
     if (this.cells[i][j].state) {
       this.cells[i][j].neighbors.forEach(nei => {
         nei.score --
-        this.drawCell(nei)
+        if (nei.state) {
+          this.drawCell(nei)
+        }
       })
     }
     this.cells[i][j].state = 0
@@ -185,20 +222,34 @@ class ConwayGameOfLife {
     if (!this.cells[i][j].state) {
       this.cells[i][j].neighbors.forEach(nei => {
         nei.score ++
-        this.drawCell(nei)
+        if (nei.state) {
+          this.drawCell(nei)
+        }
       })
     }
     this.cells[i][j].state = 1
+    this.cells[i][j].generation = this.globalState.generation
     this.drawCell(this.cells[i][j])
   }
   drawCell(cell) {
     if (cell.state) {
-      const color = this.color !== null ? this.color : 240 - cell.score * 30
+      let color
+      if (this.globalState.color === 'generation') {
+        color = cell.generation
+      } else {
+        color = 240 - cell.score * 30
+      }
       this.ctx.fillStyle = `hsl(${color}, 100%, 50%)`
     } else {
       this.ctx.fillStyle = '#ffffff'
     }
     this.ctx.fill(cell.path)
+    if (this.globalState.border) {
+      this.ctx.strokeStyle = '#f0f0f0'
+    } else {
+      this.ctx.strokeStyle = '#ffffff'
+    }
+    this.ctx.stroke(cell.path)
   }
   getCellPath(i, j) {
     const path = new Path2D()
@@ -213,43 +264,48 @@ class ConwayGameOfLife {
     const changes = []
     for (let i = 0; i < this.width; i++) {
       for (let j = 0; j < this.height; j++) {
-        if (this.cells[i][j].state && !this.survive.includes(this.cells[i][j].score)) {
+        if (
+          this.cells[i][j].state
+          && !this.globalState.survive.includes(this.cells[i][j].score)
+        ) {
           changes.push(this.cells[i][j])
           this.cells[i][j].state = 0
-        } else if (!this.cells[i][j].state && this.spawn.includes(this.cells[i][j].score)) {
+        } else if (
+          !this.cells[i][j].state
+          && this.globalState.spawn.includes(this.cells[i][j].score)
+        ) {
           changes.push(this.cells[i][j])
           this.cells[i][j].state = 1
+          this.cells[i][j].generation = this.globalState.generation
         }
       }
     }
     const redraw = new Set(changes)
     changes.forEach(cell => {
-      const scoreCange = cell.state * 2 - 1
+      const scoreChange = cell.state * 2 - 1
       cell.neighbors.forEach(nei => {
-        nei.score += scoreCange
-        if (this.color === null && nei.state) {
+        nei.score += scoreChange
+        if (this.globalState.color === 'density' && nei.state) {
           redraw.add(nei)
         }
       })
     })
     redraw.forEach(cell => this.drawCell(cell))
-    if (this.color !== null) {
-      this.color = mod(this.color + 1, 360)
-    }
+    this.globalState.generation = mod(this.globalState.generation + 1, 360)
   }
   getNeighbors() {
     return this.neighbors
   }
 }
-ConwayGameOfLife.prototype.neighbors = [
+SquareGameOfLife.prototype.neighbors = [
   [-1, -1], [-1, 0], [-1, 1],
   [ 0, -1],          [ 0, 1],
   [ 1, -1], [ 1, 0], [ 1, 1],
 ]
 
-class HexGameOfLife extends ConwayGameOfLife{
-  constructor(ctx, cellsize, color, oldPoints) {
-    super(ctx, cellsize, color, oldPoints)
+class HexagonalGameOfLife extends SquareGameOfLife{
+  constructor(ctx, state, oldPoints) {
+    super(ctx, state, oldPoints)
   }
   getSize() {
     return {
@@ -280,15 +336,15 @@ class HexGameOfLife extends ConwayGameOfLife{
     return path
   }
 }
-HexGameOfLife.prototype.neighbors = [
+HexagonalGameOfLife.prototype.neighbors = [
             [-1, 0], [-1, 1],
   [ 0, -1],          [ 0, 1],
   [ 1, -1], [ 1, 0],
 ]
 
-class TriangleGameOfLife extends ConwayGameOfLife{
-  constructor(ctx, cellsize, color, oldPoints) {
-    super(ctx, cellsize, color, oldPoints)
+class TriangleGameOfLife extends SquareGameOfLife {
+  constructor(ctx, state, oldPoints) {
+    super(ctx, state, oldPoints)
   }
   getSize() {
     return {
@@ -348,7 +404,7 @@ TriangleGameOfLife.prototype.neighbor_odd = [
   [-1, 2], [0,  2]
 ]
 const logicClass = {
-  rect: ConwayGameOfLife,
-  hex: HexGameOfLife,
+  square: SquareGameOfLife,
+  hexa: HexagonalGameOfLife,
   tri: TriangleGameOfLife
 }

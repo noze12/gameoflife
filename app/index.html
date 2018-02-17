@@ -19,21 +19,22 @@
 </style>
 <body>
 <div id="controles">
-  <button id="start"></button>
+  <button id="start">start</button>
   <button id="step">step</button>
-  interval:<input id="interval" type="number" max="1000" min="50" step="50"></input>
-  size:<input id="size" type="number" max="50" min="2"></input>
+  step interval:<input id="interval" type="number" max="1000" min="50" step="50"></input>
+  cellsize:<input id="cellsize" type="number" max="50" min="4"></input>
   shape:<select id="shape">
-    <option value="rect">rect</option>
-    <option value="hex">hex</option>
+    <option value="square">square</option>
+    <option value="hexa">hexa</option>
     <option value="tri">tri</option>
   </select>
+  survive:<input id="survive" type="text"></input>
+  spawn:<input id="spawn" type="text"></input>
   color:<select id="color">
     <option value="generation">generation</option>
     <option value="density">density</option>
   </select>
-  survive:<input id="survive" type="text"></input>
-  spawn:<input id="spawn" type="text"></input>
+  border:<input id="border" type="checkbox"></input>
   <button id="clear">clear</button>
 </div>
 <div id="field"></div>
