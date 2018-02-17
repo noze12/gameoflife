@@ -2,7 +2,7 @@
 const ROOT3 = Math.pow(3, 0.5)
 const ROOT1_3 = Math.pow(3, -0.5)
 const defaultState = {
-  cellsize: 15,
+  cellsize: 12,
   interval: 100,
   shape: 'square',
   color: 'generation',
