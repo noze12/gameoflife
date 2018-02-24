@@ -10,8 +10,27 @@
   }
   #controles {
     background-color: rgba(255, 255, 255, 0.8);
-    width: 100%;
     position: absolute;
+  }
+  #controles div {
+    margin: 6px;
+  }
+  #start, #stop, #step, #clear, #setting-open {
+    display: inline-block;
+  }
+  #controles div.hidden {
+    display: None;
+  }
+  .control-button * {
+      fill: rgb(150, 150, 150);
+  }
+  .control-button:hover * {
+    fill: rgb(0, 0, 0);
+    transition: fill 300ms 0s ease;
+  }
+  #settings table th {
+    text-align: right;
+    font-weight: normal;
   }
   input[type="text"] {
     width: 50px;
@@ -19,23 +38,80 @@
 </style>
 <body>
 <div id="controles">
-  <button id="start">start</button>
-  <button id="step">step</button>
-  step interval:<input id="interval" type="number" max="1000" min="50" step="50"></input>
-  cellsize:<input id="cellsize" type="number" max="50" min="4"></input>
-  shape:<select id="shape">
-    <option value="square">square</option>
-    <option value="hexa">hexa</option>
-    <option value="tri">tri</option>
-  </select>
-  survive:<input id="survive" type="text"></input>
-  spawn:<input id="spawn" type="text"></input>
-  color:<select id="color">
-    <option value="generation">generation</option>
-    <option value="density">density</option>
-  </select>
-  border:<input id="border" type="checkbox"></input>
-  <button id="clear">clear</button>
+  <div id="start" title="start">
+    <svg xmlns="http://www.w3.org/2000/svg" width="12px" height="12px"
+      viewBox="0 0 20 20" class="control-button">
+      <polygon points="0,0 20,10 0,20"/>
+    </svg>
+  </div>
+  <div id="stop" title="stop" class="hidden">
+    <svg xmlns="http://www.w3.org/2000/svg" width="12px" height="12px"
+      viewBox="0 0 20 20" class="control-button">
+      <rect x="3" y="0" width="5" height="20"/>
+      <rect x="13" y="0" width="5" height="20"/>
+    </svg>
+  </div>
+  <div id="step" title="step">
+    <svg xmlns="http://www.w3.org/2000/svg" width="12px" height="12px"
+      viewBox="0 0 20 20" class="control-button">
+      <polygon points="0,0 16,10 0,20"/>
+      <rect x="16" y="0" width="4" height="20"/>
+    </svg>
+  </div>
+  <div id="clear" title="clear">
+    <svg xmlns="http://www.w3.org/2000/svg" width="12px" height="12px"
+      viewBox="0 0 20 20" class="control-button">
+      <polygon points="2,0 10,8 18,0 20,2 12,10 20,18 18,20 10,12 2,20 0,18 8,10 0,2"/>
+    </svg>
+  </div>
+  <div id="setting-open" title="settings">
+    <svg xmlns="http://www.w3.org/2000/svg" width="12px" height="12px"
+      viewBox="0 0 30 30" class="control-button">
+      <circle cx="15" cy="4" r="4"/>
+      <circle cx="15" cy="15" r="4"/>
+      <circle cx="15" cy="26" r="4"/>
+    </svg>
+  </div>
+  <div id="settings" class="hidden">
+    <table>
+      <tr>
+        <th>speed</th>
+        <td><select id="speed">
+          <option value="50">20</option>
+          <option value="100">10</option>
+          <option value="200">5</option>
+          <option value="500">2</option>
+          <option value="1000">1</option>
+          <option value="2000">0.5</option>
+        </select></td>
+      </tr><tr>
+        <th>cell size</th>
+        <td><input id="cellsize" type="number" max="50" min="4"></input></td>
+      </tr><tr>
+        <th>shape</th>
+        <td><select id="shape">
+          <option value="square">square</option>
+          <option value="hexa">hexagon</option>
+          <option value="tri">triangle</option>
+        </select></td>
+      </tr><tr>
+        <th>survive</th>
+        <td><input id="survive" type="text"></input></td>
+      </tr><tr>
+        <th>spawn</th>
+        <td><input id="spawn" type="text"></input></td>
+      </tr><tr>
+        <th>color</th>
+        <td><select id="color">
+          <option value="generation">generation</option>
+          <option value="density">density</option>
+        </select></th>
+      </tr><tr>
+        <th>border</th>
+        <td><input id="border" type="checkbox"></input></td>
+      </tr>
+    </table>
+  </div>
 </div>
 <div id="field"></div>
 <script src="main.js"></script>

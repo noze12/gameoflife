@@ -61,7 +61,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const clearButton = document.getElementById('clear')
   const stepButton = document.getElementById('step')
   const startButton = document.getElementById('start')
-  const speedInput = document.getElementById('interval')
+  const stopButton = document.getElementById('stop')
+  const speedInput = document.getElementById('speed')
   const sizeInput = document.getElementById('cellsize')
   const shapeSelect = document.getElementById('shape')
   const colorSelect = document.getElementById('color')
@@ -98,17 +99,22 @@ document.addEventListener('DOMContentLoaded', () => {
   stepButton.addEventListener('click', () => logic.step())
   let intervalId
   startButton.addEventListener('click', () => {
+    if (!intervalId) {
+      intervalId = setInterval(() => logic.step(), state.interval)
+      startButton.classList.add('hidden')
+      stopButton.classList.remove('hidden')
+    }
+  })
+  stopButton.addEventListener('click', () => {
     if (intervalId) {
       clearInterval(intervalId)
       intervalId = null
-      startButton.textContent = 'start'
-    } else {
-      intervalId = setInterval(() => logic.step(), state.interval)
-      startButton.textContent = 'stop'
+      startButton.classList.remove('hidden')
+      stopButton.classList.add('hidden')
     }
   })
   speedInput.addEventListener('change', () => {
-    state.interval = speedInput.value
+    state.interval = Number(speedInput.value)
     if (intervalId) {
       clearInterval(intervalId)
       intervalId = setInterval(() => logic.step(), state.interval)
@@ -135,6 +141,9 @@ document.addEventListener('DOMContentLoaded', () => {
   borderInput.addEventListener('change', () => {
     state.border = borderInput.checked
     logic.redrawAll()
+  })
+  document.getElementById('setting-open').addEventListener('click', () => {
+    document.getElementById('settings').classList.toggle('hidden')
   })
 })
 class SquareGameOfLife {
