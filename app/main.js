@@ -2,15 +2,13 @@
 const ROOT3 = Math.pow(3, 0.5)
 const ROOT1_3 = Math.pow(3, -0.5)
 const defaultState = {
-  cellsize: 12,
+  cellsize: 8,
   interval: 100,
   shape: 'square',
   color: 'generation',
   generation: 240,
   survive: "23".split('').map(Number),
   spawn: "3".split('').map(Number),
-  start: false,
-  border: true,
 }
 function parseQueryString(queryString) {
   const state = Object.assign({}, defaultState)
@@ -24,7 +22,7 @@ function parseQueryString(queryString) {
         state.interval = Number(val)
         break;
       case 'shape':
-        if (val === 'square' || val === 'hexa' || val === 'tri' ) {
+        if (val === 'square' || val === 'hexagon' || val === 'triangle' ) {
           state.shape = val
         }
         break;
@@ -38,13 +36,6 @@ function parseQueryString(queryString) {
         break;
       case 'spawn':
         state.spawn = val.split('').map(Number)
-        break;
-      case 'border':
-        if (val === '0' || val === '' || val === 'false' ) {
-          state.border = false
-        } else {
-          state.border = true
-        }
         break;
     }
   })
@@ -68,20 +59,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const colorSelect = document.getElementById('color')
   const surviveInput = document.getElementById('survive')
   const spawnInput = document.getElementById('spawn')
-  const borderInput = document.getElementById('border')
   speedInput.value = state.interval
   sizeInput.value = state.cellsize
   shapeSelect.value = state.shape
   colorSelect.value = state.color
   surviveInput.value = state.survive.join('')
   spawnInput.value = state.spawn.join('')
-  borderInput.checked = state.border
   const fieldElement = document.getElementById('field')
   const canvas = document.createElement('canvas')
   canvas.setAttribute('width', window.innerWidth)
   canvas.setAttribute('height', window.innerHeight)
   fieldElement.appendChild(canvas)
   const ctx = canvas.getContext('2d')
+  // 一度fillした領域しかputImageDataでは描けないらしい？
+  ctx.fillStyle = 'white'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
   let logic = new (logicClass[state.shape])(ctx, state)
 
   let isMousedonw = false
@@ -138,14 +130,24 @@ document.addEventListener('DOMContentLoaded', () => {
   spawnInput.addEventListener('change', () => {
     state.spawn = spawnInput.value.split('').map(Number)
   })
-  borderInput.addEventListener('change', () => {
-    state.border = borderInput.checked
-    logic.redrawAll()
-  })
   document.getElementById('setting-open').addEventListener('click', () => {
     document.getElementById('settings').classList.toggle('hidden')
   })
 })
+
+function hueToRgb(H) {
+  //https://en.wikipedia.org/wiki/HSL_and_HSV#From_HSL
+  // S = 1, L = 0.5
+  const Hp = H / 60, X = 1 - Math.abs(Hp % 2 - 1)
+  let R, G, B
+  if (Hp < 1) [R, G, B] = [1, X, 0]
+  else if (Hp < 2) [R, G, B] = [X, 1, 0]
+  else if (Hp < 3) [R, G, B] = [0, 1, X]
+  else if (Hp < 4) [R, G, B] = [0, X, 1]
+  else if (Hp < 5) [R, G, B] = [X, 0, 1]
+  else [R, G, B] = [1, 0, X]
+  return [Math.floor(R * 255), Math.floor(G * 255), Math.floor(B * 255)]
+}
 class SquareGameOfLife {
   constructor(ctx, state, oldCells) {
     this.ctx = ctx
@@ -159,7 +161,7 @@ class SquareGameOfLife {
       cells[i] = []
       for (let j = 0; j < this.height; j++) {
         cells[i][j] = {
-          path: this.getCellPath(i, j)
+          pixels: this.getCellPixels(i, j)
         }
         if (oldCells && oldCells[i] && oldCells[i][j]) {
           cells[i][j].state = oldCells[i][j].state
@@ -175,17 +177,26 @@ class SquareGameOfLife {
           return cells[mod(i + dx, this.width)][mod(j + dy, this.height)]
         })
         cells[i][j].score = cells[i][j].neighbors.reduce((m, nei) => m + nei.state, 0)
-        this.drawCell(cells[i][j])
       }
     }
     this.cells = cells
+    this.redrawAll()
   }
-
   getSize() {
     return {
       width: Math.floor(this.ctx.canvas.width / this.cellsize),
       height: Math.floor(this.ctx.canvas.height / this.cellsize)
     }
+  }
+  getCellPixels(i, j) {
+    const pixels = []
+    const start = (this.ctx.canvas.width * j + i) * this.cellsize
+    for (let k = 0; k < this.cellsize; k ++) {
+      for (let l = 0; l < this.cellsize; l ++) {
+        pixels.push(start + this.ctx.canvas.width * k + l)
+      }
+    }
+    return pixels
   }
   clear() {
     for (let i = 0; i < this.width; i++) {
@@ -193,18 +204,18 @@ class SquareGameOfLife {
         let oldState = this.cells[i][j].state
         this.cells[i][j].state = 0
         this.cells[i][j].score = 0
-        if (oldState) {
-          this.drawCell(this.cells[i][j])
-        }
       }
     }
+    this.redrawAll()
   }
   redrawAll() {
+    const redraw = []
     for (let i = 0; i < this.width; i++) {
       for (let j = 0; j < this.height; j++) {
-        this.drawCell(this.cells[i][j])
+        redraw.push(this.cells[i][j])
       }
     }
+    this.drawCells(redraw)
   }
   clicked(x, y, toggle) {
     const i = mod(Math.floor(x / this.cellsize), this.width)
@@ -216,58 +227,59 @@ class SquareGameOfLife {
     }
   }
   blankPoint(i, j) {
+    const redraw = []
     if (this.cells[i][j].state) {
       this.cells[i][j].neighbors.forEach(nei => {
         nei.score --
         if (nei.state) {
-          this.drawCell(nei)
+          redraw.push(nei)
         }
       })
     }
     this.cells[i][j].state = 0
-    this.drawCell(this.cells[i][j])
+    redraw.push(this.cells[i][j])
+    this.drawCells(redraw)
   }
   fillPoint(i, j) {
+    const redraw = []
     if (!this.cells[i][j].state) {
       this.cells[i][j].neighbors.forEach(nei => {
         nei.score ++
         if (nei.state) {
-          this.drawCell(nei)
+          redraw.push(nei)
         }
       })
     }
     this.cells[i][j].state = 1
     this.cells[i][j].generation = this.globalState.generation
-    this.drawCell(this.cells[i][j])
+    redraw.push(this.cells[i][j])
+    this.drawCells(redraw)
   }
-  drawCell(cell) {
-    if (cell.state) {
-      let color
-      if (this.globalState.color === 'generation') {
-        color = cell.generation
+  drawCells(cells) {
+    const imagaData = this.ctx.getImageData(
+      0, 0,
+      this.ctx.canvas.width,
+      this.ctx.canvas.height
+    )
+    for (let ci = 0; ci < cells.length; ci ++) {
+      let cell = cells[ci], R, G, B
+      if (cell.state) {
+        if (this.globalState.color === 'generation') {
+          [R, G, B] = hueToRgb(cell.generation)
+        } else {
+          [R, G, B] = hueToRgb(240 - cell.score * 30)
+        }
       } else {
-        color = 240 - cell.score * 30
+        [R, G, B] = [255, 255, 255]
       }
-      this.ctx.fillStyle = `hsl(${color}, 100%, 50%)`
-    } else {
-      this.ctx.fillStyle = '#ffffff'
+      for (let i = 0; i < cell.pixels.length; i ++) {
+        let pos = cell.pixels[i] * 4
+        imagaData.data[pos] = R
+        imagaData.data[pos + 1] = G
+        imagaData.data[pos + 2] = B
+      }
     }
-    this.ctx.fill(cell.path)
-    if (this.globalState.border) {
-      this.ctx.strokeStyle = '#f0f0f0'
-    } else {
-      this.ctx.strokeStyle = '#ffffff'
-    }
-    this.ctx.stroke(cell.path)
-  }
-  getCellPath(i, j) {
-    const path = new Path2D()
-    path.moveTo(i * this.cellsize, j * this.cellsize)
-    path.lineTo((i + 1) * this.cellsize, j * this.cellsize)
-    path.lineTo((i + 1) * this.cellsize, (j + 1) * this.cellsize)
-    path.lineTo(i * this.cellsize, (j + 1) * this.cellsize)
-    path.closePath()
-    return path
+    this.ctx.putImageData(imagaData, 0, 0)
   }
   step() {
     const changes = []
@@ -299,7 +311,7 @@ class SquareGameOfLife {
         }
       })
     })
-    redraw.forEach(cell => this.drawCell(cell))
+    this.drawCells([...redraw])
     this.globalState.generation = mod(this.globalState.generation + 1, 360)
   }
   getNeighbors() {
@@ -331,18 +343,63 @@ class HexagonalGameOfLife extends SquareGameOfLife{
       this.fillPoint(i, j)
     }
   }
-  getCellPath(i, j) {
-    const centerX = mod(i + j / 2, this.width) * this.cellsize
-    const centerY = mod(ROOT3 / 2 * j, this.height) * this.cellsize
-    const path = new Path2D()
-    path.moveTo(centerX, centerY - ROOT1_3 * this.cellsize)
-    path.lineTo(centerX + this.cellsize / 2, centerY - ROOT1_3 / 2 * this.cellsize)
-    path.lineTo(centerX + this.cellsize / 2, centerY + ROOT1_3 / 2 * this.cellsize)
-    path.lineTo(centerX, centerY + ROOT1_3 * this.cellsize)
-    path.lineTo(centerX - this.cellsize / 2, centerY + ROOT1_3 / 2 * this.cellsize)
-    path.lineTo(centerX - this.cellsize / 2, centerY - ROOT1_3 / 2 * this.cellsize)
-    path.closePath()
-    return path
+  getCellPixels(i, j) {
+    const centerX = mod(i + j / 2, this.width) * this.cellsize,
+      centerY = mod(ROOT3 / 2 * j, this.height) * this.cellsize,
+      minX = Math.max(Math.floor(centerX - this.cellsize / 2), 0),
+      maxX = Math.min(
+        Math.ceil(centerX + this.cellsize / 2),
+        this.ctx.canvas.width
+      ),
+      minY = Math.max(Math.floor(centerY - ROOT1_3 * this.cellsize), 0),
+      maxY = Math.min(
+        Math.ceil(centerY + ROOT1_3 * this.cellsize),
+        this.ctx.canvas.height
+      ),
+      fcX = Math.floor(centerX),
+      fcY = Math.floor(centerY),
+      pixels = []
+    for (let x = minX; x < fcX; x++) {
+      for (let y = minY; y < fcY; y++) {
+        if (
+          y - centerY >= -1 * ROOT1_3 * (x - centerX + this.cellsize)
+          && x >= centerX - this.cellsize / 2
+        ) {
+          pixels.push(x + y * this.ctx.canvas.width)
+        }
+      }
+    }
+    for (let x = fcX; x < maxX; x++) {
+      for (let y = minY; y < fcY; y++) {
+        if (
+          y - centerY > ROOT1_3 * (x - centerX - this.cellsize)
+          && x < centerX + this.cellsize / 2
+        ) {
+          pixels.push(x + y * this.ctx.canvas.width)
+        }
+      }
+    }
+    for (let x = minX; x < fcX; x++) {
+      for (let y = fcY; y < maxY; y++) {
+        if (
+          y - centerY <= ROOT1_3 * (x - centerX + this.cellsize)
+          && x >= centerX - this.cellsize / 2
+        ) {
+          pixels.push(x + y * this.ctx.canvas.width)
+        }
+      }
+    }
+    for (let x = fcX; x < maxX; x++) {
+      for (let y = fcY; y < maxY; y++) {
+        if (
+          y - centerY < -1 * ROOT1_3 * (x - centerX - this.cellsize)
+          && x < centerX + this.cellsize / 2
+        ) {
+          pixels.push(x + y * this.ctx.canvas.width)
+        }
+      }
+    }
+    return pixels
   }
 }
 HexagonalGameOfLife.prototype.neighbors = [
@@ -370,23 +427,46 @@ class TriangleGameOfLife extends SquareGameOfLife {
       this.fillPoint(i, j)
     }
   }
-  getCellPath(i, j) {
-    const path = new Path2D()
+  getCellPixels(i, j) {
+    const pixels = []
     if (j % 2 === 0) {
-      const leftTopX = mod(i * 2 + j / 2, this.width * 2)  * ROOT1_3 * this.cellsize
+      const leftTopX = mod(i * 2 + j / 2, this.width * 2) * ROOT1_3 * this.cellsize
       const leftTopY = j / 2 * this.cellsize
-      path.moveTo(leftTopX, leftTopY)
-      path.lineTo(leftTopX + 2 * ROOT1_3 * this.cellsize, leftTopY)
-      path.lineTo(leftTopX + ROOT1_3 * this.cellsize, leftTopY + this.cellsize)
+      const minX = Math.max(Math.floor(leftTopX), 0),
+        maxX = Math.min(
+          Math.ceil(leftTopX + 2 * ROOT1_3 * this.cellsize),
+          this.ctx.canvas.width
+        )
+      for (let x = minX; x < maxX; x++) {
+        for (let y = leftTopY; y < leftTopY + this.cellsize; y++) {
+          if (
+            y - leftTopY <= ROOT3 * (x - leftTopX)
+            && y - leftTopY < 2 * this.cellsize - ROOT3 * (x - leftTopX)
+          ) {
+            pixels.push(x + y * this.ctx.canvas.width)
+          }
+        }
+      }
     } else {
       const TopX = mod((i + 1) * 2  + (j - 1) / 2, this.width * 2) * ROOT1_3 * this.cellsize
       const TopY = (j - 1) / 2 * this.cellsize
-      path.moveTo(TopX, TopY)
-      path.lineTo(TopX - ROOT1_3 * this.cellsize, TopY + this.cellsize)
-      path.lineTo(TopX + ROOT1_3 * this.cellsize, TopY + this.cellsize)
+      const minX = Math.max(Math.floor(TopX - ROOT1_3 * this.cellsize), 0),
+        maxX = Math.min(
+          Math.ceil(TopX + ROOT1_3 * this.cellsize),
+          this.ctx.canvas.width
+        )
+      for (let x = minX; x < maxX; x++) {
+        for (let y = TopY; y < TopY + this.cellsize; y++) {
+          if (
+            y - TopY >= ROOT3 * (x - TopX)
+            && y - TopY > - ROOT3 * (x - TopX)
+          ) {
+            pixels.push(x + y * this.ctx.canvas.width)
+          }
+        }
+      }
     }
-    path.closePath()
-    return path
+    return pixels
   }
   getNeighbors(i, j) {
     if (j % 2 === 0) {
@@ -414,6 +494,6 @@ TriangleGameOfLife.prototype.neighbor_odd = [
 ]
 const logicClass = {
   square: SquareGameOfLife,
-  hexa: HexagonalGameOfLife,
-  tri: TriangleGameOfLife
+  hexagon: HexagonalGameOfLife,
+  triangle: TriangleGameOfLife
 }
