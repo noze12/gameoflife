@@ -7,9 +7,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "browser-sync start --server 'app' --files 'app/*' --no-open"
   },
-  "author": "",
+  "author": "noze12",
   "license": "ISC",
   "devDependencies": {
-    "browser-sync": "^2.23.6"
+    "browser-sync": "^2.26.7"
   }
 }
