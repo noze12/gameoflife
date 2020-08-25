@@ -10,6 +10,6 @@
   "author": "noze12",
   "license": "ISC",
   "devDependencies": {
-    "browser-sync": "^2.26.7"
+    "browser-sync": "^2.26.12"
   }
 }
